@@ -51,15 +51,4 @@ streamlit run app.py
 ```
 
 ## Get Free API Key
-
 https://console.groq.com
-
-## My RAG Projects
-
-| # | Project | Repo |
-|---|---|---|
-| 1 | Text Summarizer | https://github.com/hari12314/Text-Summarizer-Groq |
-| 2 | Multi-Doc Q&A | https://github.com/hari12314/Multi-Document-Q-A-System |
-| 3 | RAG Summarization | https://github.com/hari12314/RAG-Summarization |
-| 4 | Knowledge Bot | https://github.com/hari12314/RAG-Knowledge-Bot |
-| 5 | RAG Agent | https://github.com/hari12314/RAG-Agent-Tool-Calling |
