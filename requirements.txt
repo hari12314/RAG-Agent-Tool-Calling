@@ -8,3 +8,4 @@ faiss-cpu
 sentence-transformers
 pypdf
 duckduckgo-search
+tavily-python
