@@ -32,7 +32,7 @@ Final Answer: For 10 users on Pro plan, annual cost is $3,480.
 | Tool | Purpose |
 |---|---|
 | search_knowledge_base | RAG retrieval from uploaded documents |
-| search_web | DuckDuckGo internet search |
+| search_web | Internet search with DuckDuckGo (default) or optional Parallel Search MCP |
 | get_current_datetime | Current date and time |
 | calculate | Math: +, -, *, /, **, sqrt, % |
 | summarize | Condense retrieved content |
@@ -48,6 +48,38 @@ Final Answer: For 10 users on Pro plan, annual cost is $3,480.
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+```
+
+### Optional Parallel web search
+
+The Streamlit app can use [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
+for free web search in Fast mode, with source excerpts and URLs available to the
+agent. No Parallel account or API key is required for light use. DuckDuckGo
+remains the default; this option does not change the notebook.
+
+After installing the app dependencies above, install the optional backend with
+Python 3.11 or newer:
+
+```bash
+pip install -r requirements-parallel.txt
+streamlit run app.py
+```
+
+Choose **Parallel** under **Web search provider** in the sidebar, enter your
+Groq API key as usual, and try **Search the web for LangChain RAG**. The existing
+`search_web` action sends the query to `https://search.parallel.ai/mcp` using
+Streamable HTTP and passes the returned text to the agent as an observation.
+Queries are sent to the selected provider. Knowledge-base retrieval continues
+to use the existing FAISS index.
+
+Search calls have a 30-second timeout. Free access has rate limits; failures
+appear in the tool observation without switching providers. Select DuckDuckGo
+to switch back. The Groq key is still needed for the agent's responses.
+
+Backend and agent-dispatch checks can run without downloading embedding models:
+
+```bash
+python -m unittest discover -s tests -v
 ```
 
 ## Get Free API Key
