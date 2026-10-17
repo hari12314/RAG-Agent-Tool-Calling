@@ -240,7 +240,7 @@ for k, v in [("messages",[]),("vs",None),("kb_built",False),("chunks",0),("doc_n
 
 TOOL_INFO = [
     ("search_knowledge_base", "RAG search from uploaded documents"),
-    ("search_web",            "DuckDuckGo internet search (free)"),
+    ("search_web",            "Internet search via the selected provider"),
     ("get_current_datetime",  "Current date and time"),
     ("calculate",             "Math: +, -, *, /, **, sqrt, %"),
     ("summarize",             "Summarize retrieved content"),
@@ -276,7 +276,19 @@ def t_kb(vs, q, k=3):
     r = vs.similarity_search(q, k=k)
     return "\n\n".join([x.page_content for x in r]) if r else "No results found."
 
-def t_web(q, n=3):
+def t_web(q, n=3, search_provider="DuckDuckGo"):
+    if search_provider == "Parallel":
+        try:
+            from parallel_search import search
+            return search(q)
+        except ImportError:
+            return "Parallel search requires: pip install -r requirements-parallel.txt"
+        except TimeoutError:
+            return "Web search error: Parallel search timed out."
+        except Exception as e:
+            return "Web search error: " + str(e)
+    if search_provider != "DuckDuckGo":
+        return "Web search error: Unknown provider: " + search_provider
     try:
         from duckduckgo_search import DDGS
         with DDGS() as d:
@@ -308,10 +320,10 @@ def t_check(vs, topic):
     r = vs.similarity_search(topic, k=1)
     return ("YES - Found: " + r[0].page_content[:120]) if r else "NO - Not found."
 
-def execute(client, model, vs, tool, args):
+def execute(client, model, vs, tool, args, search_provider="DuckDuckGo"):
     t = tool.lower().strip()
     if t=="search_knowledge_base":   return t_kb(vs, args)
-    elif t=="search_web":            return t_web(args)
+    elif t=="search_web":            return t_web(args, search_provider=search_provider)
     elif t=="get_current_datetime":  return t_dt()
     elif t=="calculate":             return t_calc(args)
     elif t=="summarize":             return t_sum(client, model, args)
@@ -339,7 +351,7 @@ def build_system_prompt():
         "RULES: Always start with Thought. One tool per Action. End with Final Answer."
     )
 
-def run_agent(client, model, vs, question, max_steps=6, temperature=0.1):
+def run_agent(client, model, vs, question, max_steps=6, temperature=0.1, search_provider="DuckDuckGo"):
     t0 = time.time()
     steps, tools_used = [], []
     sys_prompt = build_system_prompt()
@@ -364,7 +376,7 @@ def run_agent(client, model, vs, question, max_steps=6, temperature=0.1):
         tool, args = parse_action(out)
         if tool:
             tools_used.append(tool)
-            obs = execute(client, model, vs, tool, args)
+            obs = execute(client, model, vs, tool, args, search_provider=search_provider)
             steps.append({"step":step+1,"type":"action","thought":out,"tool":tool,"args":args,"observation":obs})
             messages.append({"role":"assistant","content":out})
             messages.append({"role":"user","content":"Observation: " + obs + "\n\nContinue:"})
@@ -388,6 +400,10 @@ with st.sidebar:
     model = st.selectbox("", ["llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768"], label_visibility="collapsed")
     temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.05)
     max_steps   = st.slider("Max Steps", 3, 10, 6)
+
+    search_provider = st.selectbox("Web search provider", ["DuckDuckGo", "Parallel"])
+    if search_provider == "Parallel":
+        st.caption("Free Parallel Search MCP. No Parallel API key required.")
 
     st.markdown("**Chunking**")
     chunk_size    = st.slider("Chunk Size", 200, 800, 300, 50)
@@ -482,7 +498,7 @@ with right:
             'Hello! I am <strong>AgentRAG</strong> — a ReAct agent with multiple tools.<br><br>'
             'I can:<br>'
             '&nbsp;&nbsp;- Search your knowledge base (RAG)<br>'
-            '&nbsp;&nbsp;- Search the web (DuckDuckGo)<br>'
+            '&nbsp;&nbsp;- Search the web using the selected provider<br>'
             '&nbsp;&nbsp;- Do math calculations<br>'
             '&nbsp;&nbsp;- Get current date/time<br>'
             '&nbsp;&nbsp;- Summarize retrieved content<br><br>'
@@ -547,7 +563,7 @@ with right:
 
             with st.spinner("Agent is reasoning..."):
                 try:
-                    result = run_agent(groq_client, model, vs, user_input.strip(), max_steps, temperature)
+                    result = run_agent(groq_client, model, vs, user_input.strip(), max_steps, temperature, search_provider=search_provider)
                     st.session_state["messages"].append({"role":"user","content":user_input.strip()})
                     st.session_state["messages"].append({
                         "role":"assistant",
@@ -584,7 +600,7 @@ with right:
                         groq_client = Groq(api_key=api_key)
                         with st.spinner("Thinking..."):
                             try:
-                                r = run_agent(groq_client, model, st.session_state.get("vs"), ex, max_steps, temperature)
+                                r = run_agent(groq_client, model, st.session_state.get("vs"), ex, max_steps, temperature, search_provider=search_provider)
                                 st.session_state["messages"].append({"role":"user","content":ex})
                                 st.session_state["messages"].append({
                                     "role":"assistant","content":r["answer"],
